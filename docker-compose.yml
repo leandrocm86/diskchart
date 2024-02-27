@@ -1,0 +1,18 @@
+version: "3"
+services:
+    diskchart:
+        container_name: diskchart
+        image: leandrocm86/diskchart:latest
+        restart: unless-stopped
+        ports:
+            - 1024:80
+        volumes:
+            - /:/mnt/main:ro
+            - /home:/mnt/home:ro
+        environment:
+            # THIS VARIABLE MUST DECLARE (IN JSON FORMAT) EACH BIND-MOUNTED VOLUME BY ITS RESPECTIVE LABEL.
+            # THESE WILL BE THE STARTING POINTS AVAILABLE FOR THE CHART, AND SHOULD MIMIC THE VOLUMES SECTION.
+            - BINDINGS={"/":"/mnt/main", "/home":"/mnt/home"}
+            
+            # Timezone (optional). Used to show the right time on docker logs.
+            - TZ=America/Sao_Paulo

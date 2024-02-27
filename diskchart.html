@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src='./chart.umd.js'></script>
+	<title>Diskchart</title>
+	<style>
+		#chart-container {
+			display: flex;
+			flex-direction: column;
+			height: 90vh;
+			width: 100%;
+		}
+		#crumb-scroll a {
+			margin-right: 1%;
+			font-size: x-large;
+		}
+		#cached {
+			background-color: greenyellow;
+		}
+		.large {
+			font-size: large;
+		}
+		#crumb-scroll {
+			overflow-x: scroll;
+			white-space: nowrap;
+        }
+		#mountpoint {
+			text-align: center;
+		}
+        #controls {
+		    width: 100%;
+			margin-bottom: 1%;
+			text-align: center;
+        }
+        @media (orientation: landscape) {
+			#chart-container {
+				align-items: center;
+			}
+            #controls {
+                display: inline-block;
+            }
+			#crumb-scroll, #mountpoint {
+				max-width: 80%;
+			}
+        }
+        @media (orientation: portrait) {
+			#chart-container {
+				justify-content: center;
+			}
+            #controls {
+                display: block;
+            }
+			#crumb-scroll, #mountpoint {
+				width: 100%;
+				margin-bottom: 2%;
+			}
+        }
+	</style>
+</head>
+<body style="text-align: center;">
+	<h2 id="display-message" style="display: none;"></h2>
+	<div id="chart-container">
+		<div id="controls">
+			<select id="mountpoint" style="display: none;" class="large">
+				<option selected disabled hidden>Select mountpoint</option>
+			</select>
+			<div id="crumb-scroll" style="display: none;"></div>
+			<div style="display: inline;">
+				<label id="cached" class="large" style="display: none">[Cached]</label>
+				<button id="refresh" class="large" style="display: none"><span>&#x21BB;</span><span>Refresh</span></button>
+			</div>
+		</div>
+		<canvas id="canvas"></canvas>
+	</div>
+	<script>
+		document.body.onload = () => {
+			import('./diskchart.js').then(diskchart => {
+				diskchart.init(Chart);
+			})
+		}
+	</script>
+</body>
+</html>
