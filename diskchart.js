@@ -1,4 +1,5 @@
 const MAX_SLICES = 7  // The seventh slice is turned into "others", with the sum of all slices from 7th onwards.
+const EXPECTED_ERROR_CODES = [400, 404]
 const LANDSCAPE = window.matchMedia("(orientation: landscape)").matches
 const slcMountpoint = document.getElementById('mountpoint')
 const hDisplayMessage = document.getElementById('display-message')
@@ -108,6 +109,7 @@ async function listMountpoints() {
 }
 
 async function fetchData(target, nocache) {
+    console.log('Fetching ' + target)
     target = normalize(target)
     if (cachedJSONs[target] != null && !nocache) {
 		processResponse(target, cachedJSONs[target])
@@ -116,14 +118,24 @@ async function fetchData(target, nocache) {
     }
     lblCached.style.display = 'none'
 	displayMessage(`Calculating sizes from ${target}. This may take a few minutes. Please wait ...`)
-	fetch('/api/diskchart?target=' + target).then(response => {
+    const encodedTarget = encodeURIComponent(target)
+	fetch(`/api/diskchart?target=${encodedTarget}`).then(response => {
 		btnRefresh.style.display = 'inline-block'
 		if (!response.ok) {
 			console.log(`Failed to load data from ${target}. Status code: ${response.status}. Message: ${response.statusText}`)
-			response.json().then(json => {
-				alert(json.error)
-				displayMessage(null)
-			}).catch(error => displayMessage(error))
+			if (EXPECTED_ERROR_CODES.some(code => code == response.status)) {
+				response.json().then(json => {
+					console.log(json.error)
+					alert(json.error)
+					displayMessage(null)
+				}).catch(error => {
+					displayMessage(`Error while trying to handle response ${response.status}. Check the logs.`)
+					console.log(error)
+				})
+			} else {
+				displayMessage(`Unexpected error ${response.status}. Check the logs.`)
+				console.log(response)
+			}
 		}
 		else {
 			displayMessage(null)

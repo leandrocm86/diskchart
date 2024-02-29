@@ -3,19 +3,20 @@ from urllib.parse import unquote
 import os
 import time
 import json
+import shlex
 
 BIND_MOUNTS = json.loads(os.environ['BINDINGS'])
 
 
-def du(path):
+def du(path) -> list[str]:
     ''' Runs du on the request path's contents and returns all its output.
         Ignores subfolders that are mount points (because they use space from other partitions). '''
 
     # du_command = "parallel 'if ! mountpoint -q {}; then du -xs {}; else echo \"skipping {} for being a mount point\"; fi' ::: " + contents + " 2>&1"
-    du_command = 'find "' + path + '" -mindepth 1 -maxdepth 1 | while read -r i; do if ! mountpoint -q "$i"; then du -xs "$i"; else echo "skipping $i for being a mount point"; fi; done 2>&1'
-    print('Executing command: ', du_command)
-    output = os.popen(du_command).readlines()
-    return output
+    escaped_path = shlex.quote(path)
+    du_command = f'find {escaped_path} -mindepth 1 -maxdepth 1 2>&1 | while read -r i; do if ! mountpoint -q "$i"; then du -xs "$i"; fi; done 2>&1'
+    print('Executing command:', du_command)
+    return os.popen(du_command).readlines()
 
 
 def df_available_space(target) -> int | None:
@@ -60,7 +61,7 @@ def _translate(mappings: dict[str, str], path_to_translate: str):
 
 @route('/api/diskchart/mountpoints')
 def list_mountpoints():
-    print('get mountpoints!')
+    print('Retrieving mountpoints')
     ''' Endpoint to be called at page loading for listing the mountpoint options. '''
     return {'mountpoints': sorted([k for k in BIND_MOUNTS.keys()], key=lambda path: len(path))}
 
@@ -70,6 +71,7 @@ def get_disk_data():
     ''' Endpoint for retrieving disk usage data. '''
 
     target = request.query_string.partition('target=')[2]
+    print(f'Request to get data from {target}')
     target = unquote(target)
     start_time = time.time()
     mounted_path = get_mounted_path(target)
@@ -87,15 +89,23 @@ def get_disk_data():
         return {'error': f'Target path {target} (mapped as {mounted_path}) is not a directory.'}
 
     du_output = du(mounted_path)
-    content_sizes = []
+    content_sizes, unexpected_outputs = [], []
     for output in du_output:
         split = output.split('\t')
-        if split[0].isdigit() and int(split[0]):
-            content_sizes.append(f'{get_host_path(split[1])}={split[0]}')
-    
+        if split[0].isdigit():
+            if int(split[0]):
+                content_sizes.append(f'{get_host_path(split[1])}={split[0]}')
+        else:
+            unexpected_outputs.append(output)
+
     if not content_sizes:
-        response.status = 400
-        return {'error': f'No disk space being used in folder {target}.'}
+        if unexpected_outputs:
+            print('Executed shell command seems to have failed. Unexpected outputs:\n', unexpected_outputs)
+            response.status = 490
+            return {'error': f'Failed to calculate sizes for {mounted_path}'}
+        else:
+            response.status = 400
+            return {'error': f'No disk space being used in folder {target}.'}
 
     return {
         'contentSizes': content_sizes,
